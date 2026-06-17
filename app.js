@@ -5,6 +5,20 @@
 (function () {
   "use strict";
 
+  const STRATEGIC_CHOKEPOINTS = [
+    { id: "suez", name: "Suez Canal", lat: 30.6, lon: 32.3, type: "canal" },
+    { id: "panama", name: "Panama Canal", lat: 9.1, lon: -79.9, type: "canal" },
+    { id: "hormuz", name: "Strait of Hormuz", lat: 26.6, lon: 56.3, type: "strategic" },
+    { id: "bab", name: "Bab el-Mandeb", lat: 12.6, lon: 43.3, type: "strategic" },
+    { id: "malacca", name: "Malacca Strait", lat: 2.5, lon: 101.3, type: "strategic" },
+  ];
+
+  const VULNERABILITY_THRESHOLDS = {
+    criticalKm: 2000,
+    highKm: 1200,
+    mediumKm: 2500,
+  };
+
   const DAILY_PORTS_URL =
     "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Ports_Data/FeatureServer/0/query?where=1%3D1&outFields=year,month,day,portname,country,portcalls_tanker,import_tanker,export_tanker,portid&outSR=4326&f=json";
 
@@ -31,6 +45,10 @@
     tankerTraffic: null,
     congestionRisk: null,
     supplyRole: null,
+    nearestChokepoint: null,
+    chokepointDistance: null,
+    vulnerabilityScore: null,
+    vulnerabilityCard: null,
     analysisText: null,
     analysisBlock: null,
     analysisTimestamp: null,
@@ -43,6 +61,10 @@
     ui.tankerTraffic = document.getElementById("metric-tanker-traffic");
     ui.congestionRisk = document.getElementById("metric-congestion-risk");
     ui.supplyRole = document.getElementById("metric-supply-role");
+    ui.nearestChokepoint = document.getElementById("metric-nearest-chokepoint");
+    ui.chokepointDistance = document.getElementById("metric-chokepoint-distance");
+    ui.vulnerabilityScore = document.getElementById("metric-vulnerability-score");
+    ui.vulnerabilityCard = document.querySelector(".vulnerability-card");
     ui.analysisText = document.getElementById("analysis-text");
     ui.analysisBlock = document.getElementById("economic-analysis");
     ui.analysisTimestamp = document.getElementById("analysis-timestamp");
@@ -155,13 +177,156 @@
     return MARKER_MIN_RADIUS + normalized * (MARKER_MAX_RADIUS - MARKER_MIN_RADIUS);
   }
 
-  function generateEconomicInference(portData) {
+  function findNearestChokepoint(lat, lon) {
+    let nearest = null;
+    let minDistance = Infinity;
+
+    STRATEGIC_CHOKEPOINTS.forEach(function (chokepoint) {
+      const distance = map.distance([lat, lon], [chokepoint.lat, chokepoint.lon]);
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearest = chokepoint;
+      }
+    });
+
+    return {
+      chokepoint: nearest,
+      distanceMeters: minDistance,
+      distanceKm: minDistance / 1000,
+    };
+  }
+
+  function formatDistanceKm(distanceKm) {
+    if (distanceKm < 1) {
+      return Math.round(distanceKm * 1000) + " m";
+    }
+
+    return "~" + Math.round(distanceKm).toLocaleString() + " km";
+  }
+
+  function assessVulnerability(portData, proximity) {
+    const count = portData.vessel_count_tanker;
+    const distanceKm = proximity.distanceKm;
+    const chokepoint = proximity.chokepoint;
+    const isPrimaryHub = count > 150;
+    const isRegional = count >= 50 && count <= 150;
+    const isStrategicGate =
+      chokepoint.id === "hormuz" || chokepoint.id === "bab";
+    const isCanal = chokepoint.id === "suez" || chokepoint.id === "panama";
+
+    if (
+      isPrimaryHub &&
+      isStrategicGate &&
+      distanceKm <= VULNERABILITY_THRESHOLDS.criticalKm
+    ) {
+      return {
+        score: "Critical",
+        scoreClass: "text-fuchsia-400",
+        cardClass: "vulnerability-card--critical",
+      };
+    }
+
+    if (
+      (isPrimaryHub && distanceKm <= VULNERABILITY_THRESHOLDS.highKm) ||
+      (isRegional && isStrategicGate && distanceKm <= 1500)
+    ) {
+      return {
+        score: "High",
+        scoreClass: "text-purple-400",
+        cardClass: "vulnerability-card--high",
+      };
+    }
+
+    if (
+      distanceKm <= VULNERABILITY_THRESHOLDS.mediumKm ||
+      (isRegional && distanceKm <= 2000) ||
+      (isCanal && distanceKm <= 3000)
+    ) {
+      return {
+        score: "Medium",
+        scoreClass: "text-violet-400",
+        cardClass: "vulnerability-card--medium",
+      };
+    }
+
+    return {
+      score: "Low",
+      scoreClass: "text-emerald-400",
+      cardClass: "vulnerability-card--low",
+    };
+  }
+
+  function buildVulnerabilityNarrative(portData, proximity, vulnerability, baseRole) {
+    const chokepoint = proximity.chokepoint;
+    const distanceLabel = formatDistanceKm(proximity.distanceKm);
+    const isPrimaryHub = baseRole === "Global Chokepoint / Primary Energy Hub";
+
+    if (
+      vulnerability.score === "Critical" &&
+      (chokepoint.id === "hormuz" || chokepoint.id === "bab")
+    ) {
+      return (
+        " Strategic vulnerability assessment flags CRITICAL exposure: " +
+        portData.portname +
+        " sits within " +
+        distanceLabel +
+        " of the " +
+        chokepoint.name +
+        ", one of the world's most geopolitically sensitive energy corridors. Regional tensions, naval interdiction, or blockade scenarios could sever Gulf export routes overnight, forcing tanker rerouting around the Cape of Good Hope and adding 10–14 days to voyage times. Such disruptions historically compress effective global tanker supply and can instantly reprice Brent crude risk premia across futures markets."
+      );
+    }
+
+    if (chokepoint.id === "hormuz" || chokepoint.id === "bab") {
+      return (
+        " Proximity to the " +
+        chokepoint.name +
+        " (" +
+        distanceLabel +
+        ") elevates geopolitical energy security risk for " +
+        portData.country +
+        ". Analysts should monitor regional conflict escalations, insurance war-risk surcharges, and the economics of Cape rerouting as leading indicators of supply shock transmission into global energy markets."
+      );
+    }
+
+    if (chokepoint.id === "suez" || chokepoint.id === "panama") {
+      return (
+        " Dependence on the " +
+        chokepoint.name +
+        " (" +
+        distanceLabel +
+        ") introduces canal-specific systemic vulnerability. Climate-induced draft restrictions, drought-related transit limits, and periodic congestion at lock systems can strand cargoes and inflate time-charter equivalent (TCE) rates. " +
+        (isPrimaryHub
+          ? "As a primary hub, alternative-route economics—longer cape voyages versus canal toll structures—become a core variable in this port's marginal cost of trade."
+          : "Regional shippers must continuously evaluate alternative-route economics when canal reliability deteriorates.")
+      );
+    }
+
+    if (chokepoint.id === "malacca") {
+      return (
+        " Proximity to the Malacca Strait (" +
+        distanceLabel +
+        ") links this port to the densest tanker transit lane connecting the Indian Ocean and Pacific basin. Any disruption—piracy resurgence, territorial friction, or accident-driven closures—would cascade through Asian refining margins and spot crude differentials with disproportionate speed."
+      );
+    }
+
+    return (
+      " Nearest monitored chokepoint: " +
+      chokepoint.name +
+      " (" +
+      distanceLabel +
+      "). While geographically distant, systemic shocks at major maritime gateways propagate through freight markets and can still influence this port's indirect cost base via insurance, bunker fuel, and charter-rate spillovers."
+    );
+  }
+
+  function generateEconomicInference(portData, proximity, vulnerability) {
     const count = portData.vessel_count_tanker;
     const name = portData.portname;
     const country = portData.country;
+    let base;
 
     if (count > 150) {
-      return {
+      base = {
         supplyChainRole: "Global Chokepoint / Primary Energy Hub",
         congestionRisk: "High",
         riskClass: "text-red-400",
@@ -174,10 +339,8 @@
           country +
           "'s macroeconomic stability is tightly coupled to uninterrupted flows through this hub, making it a focal point for sovereign risk monitors and commodity hedge desks alike.",
       };
-    }
-
-    if (count >= 50 && count <= 150) {
-      return {
+    } else if (count >= 50 && count <= 150) {
+      base = {
         supplyChainRole: "Regional Distribution Node",
         congestionRisk: "Moderate",
         riskClass: "text-amber-400",
@@ -190,21 +353,30 @@
           country +
           "'s localized energy security. While not a systemic global chokepoint, congestion or regulatory delays here can ripple through adjacent refining corridors and elevate regional spot premiums. Policymakers should treat sustained throughput growth at this port as an early indicator of shifting trade lane dependencies.",
       };
+    } else {
+      base = {
+        supplyChainRole: "Secondary Feeder Port",
+        congestionRisk: "Low",
+        riskClass: "text-green-400",
+        roleClass: "text-slate-300",
+        analysis:
+          name +
+          " registers as a secondary feeder port with " +
+          count.toLocaleString() +
+          " tanker vessels, indicating a supportive rather than dominant role in " +
+          country +
+          "'s maritime energy network. Disruptions at this facility carry limited direct impact on global crude benchmarks, though they may affect niche product flows and coastal supply chains. This port represents a lower-priority node for systemic risk modeling but remains relevant for granular regional trade analysis.",
+      };
     }
 
-    return {
-      supplyChainRole: "Secondary Feeder Port",
-      congestionRisk: "Low",
-      riskClass: "text-green-400",
-      roleClass: "text-slate-300",
-      analysis:
-        name +
-        " registers as a secondary feeder port with " +
-        count.toLocaleString() +
-        " tanker vessels, indicating a supportive rather than dominant role in " +
-        country +
-        "'s maritime energy network. Disruptions at this facility carry limited direct impact on global crude benchmarks, though they may affect niche product flows and coastal supply chains. This port represents a lower-priority node for systemic risk modeling but remains relevant for granular regional trade analysis.",
-    };
+    base.analysis += buildVulnerabilityNarrative(
+      portData,
+      proximity,
+      vulnerability,
+      base.supplyChainRole
+    );
+
+    return base;
   }
 
   function setMetricClasses(element, baseClasses, colorClass) {
@@ -233,8 +405,35 @@
     marker.openPopup();
   }
 
+  function updateVulnerabilityCard(vulnerability, proximity) {
+    ui.nearestChokepoint.textContent = proximity.chokepoint.name;
+    ui.nearestChokepoint.className =
+      "vulnerability-metric__value mt-1 text-sm font-medium text-fuchsia-200";
+
+    ui.chokepointDistance.textContent = formatDistanceKm(proximity.distanceKm);
+    ui.chokepointDistance.className =
+      "vulnerability-metric__value mt-1 font-mono text-sm text-violet-300";
+
+    ui.vulnerabilityScore.textContent = vulnerability.score;
+    setMetricClasses(
+      ui.vulnerabilityScore,
+      "vulnerability-metric__value mt-1 font-mono text-sm font-semibold uppercase tracking-wide",
+      vulnerability.scoreClass
+    );
+
+    ui.vulnerabilityCard.classList.remove(
+      "vulnerability-card--critical",
+      "vulnerability-card--high",
+      "vulnerability-card--medium",
+      "vulnerability-card--low"
+    );
+    ui.vulnerabilityCard.classList.add(vulnerability.cardClass);
+  }
+
   function updateEconomicAnalysis(portData) {
-    const inference = generateEconomicInference(portData);
+    const proximity = findNearestChokepoint(portData.lat, portData.lon);
+    const vulnerability = assessVulnerability(portData, proximity);
+    const inference = generateEconomicInference(portData, proximity, vulnerability);
 
     ui.portHeader.classList.remove("analysis-header--idle");
     ui.portHeader.classList.add("analysis-header--active");
@@ -261,6 +460,8 @@
       "mt-1 text-sm font-medium leading-snug",
       inference.roleClass
     );
+
+    updateVulnerabilityCard(vulnerability, proximity);
 
     ui.analysisText.textContent = inference.analysis;
     ui.analysisText.className = "analysis-text text-sm leading-relaxed text-slate-300";
