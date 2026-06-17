@@ -104,6 +104,11 @@
     filterRisk: null,
     filterSort: null,
     filterResultCount: null,
+    btnExportReport: null,
+    btnMethodology: null,
+    btnCloseMethodology: null,
+    methodologyDrawer: null,
+    methodologyBackdrop: null,
   };
 
   function cacheDomElements() {
@@ -131,6 +136,155 @@
     ui.filterRisk = document.getElementById("filter-risk");
     ui.filterSort = document.getElementById("filter-sort");
     ui.filterResultCount = document.getElementById("filter-result-count");
+    ui.btnExportReport = document.getElementById("btn-export-report");
+    ui.btnMethodology = document.getElementById("btn-methodology");
+    ui.btnCloseMethodology = document.getElementById("btn-close-methodology");
+    ui.methodologyDrawer = document.getElementById("methodology-drawer");
+    ui.methodologyBackdrop = document.getElementById("methodology-backdrop");
+  }
+
+  function getSelectLabel(selectElement) {
+    return selectElement.options[selectElement.selectedIndex].text;
+  }
+
+  function getChokepointStatusSummary() {
+    return STRATEGIC_CHOKEPOINTS.map(function (chokepoint) {
+      const status = closedChokepoints.has(chokepoint.id) ? "CLOSED" : "OPEN";
+      return chokepoint.name + ": " + status;
+    }).join(", ");
+  }
+
+  function downloadTextFile(filename, content, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportScenarioReport() {
+    const stats = computeGlobalStats();
+    const timestamp = new Date().toISOString();
+    const readableTime = new Date().toLocaleString();
+    const lines = [];
+
+    lines.push("# PortWatch Scenario Report");
+    lines.push("");
+    lines.push("**Generated:** " + readableTime + " (`" + timestamp + "`)");
+    lines.push("**Platform:** TankerMap · IMF PortWatch Open Intelligence");
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+    lines.push("## Global Filters");
+    lines.push("");
+    lines.push("| Filter | Active Value |");
+    lines.push("| --- | --- |");
+    lines.push("| Region / Continent | " + getSelectLabel(ui.filterRegion) + " |");
+    lines.push("| Risk Level | " + getSelectLabel(ui.filterRisk) + " |");
+    lines.push("| Sort By | " + getSelectLabel(ui.filterSort) + " |");
+    lines.push("");
+    lines.push("## Chokepoint Status");
+    lines.push("");
+    STRATEGIC_CHOKEPOINTS.forEach(function (chokepoint) {
+      const status = closedChokepoints.has(chokepoint.id) ? "CLOSED" : "OPEN";
+      lines.push("- **" + chokepoint.name + ":** " + status);
+    });
+    lines.push("");
+    lines.push("*Summary:* " + getChokepointStatusSummary());
+    lines.push("");
+    lines.push("## Visible Statistics");
+    lines.push("");
+    lines.push("- **Total Active Tankers (visible):** " + stats.totalTankers.toLocaleString());
+    lines.push("- **Ports Visible on Map:** " + stats.totalPorts.toLocaleString() + " of " + stats.totalUniverse.toLocaleString());
+    lines.push("- **Elevated Risk Ports (High / Critical):** " + stats.elevatedRiskCount.toLocaleString());
+    lines.push("- **Disrupted Ports (simulated):** " + stats.disruptedCount.toLocaleString());
+    lines.push("- **View Mode:** " + (viewMode === "port" ? "Single Port Analysis" : "Global Maritime Outlook"));
+    lines.push("");
+
+    if (viewMode === "port" && selectedPortData) {
+      const entry = allPorts.find(function (item) {
+        return item.port.portid === selectedPortData.portid;
+      });
+      const proximity = entry
+        ? entry.proximity
+        : findNearestChokepoint(selectedPortData.lat, selectedPortData.lon);
+      const vulnerability = getEffectiveVulnerability(selectedPortData, proximity);
+      const baseVulnerability = assessVulnerability(selectedPortData, proximity);
+      const inference = generateEconomicInference(
+        selectedPortData,
+        proximity,
+        baseVulnerability
+      );
+
+      lines.push("## Selected Port Analysis");
+      lines.push("");
+      lines.push("### " + selectedPortData.portname + " · " + selectedPortData.country);
+      lines.push("");
+      lines.push("| Metric | Value |");
+      lines.push("| --- | --- |");
+      lines.push("| Total Tanker Traffic | " + selectedPortData.vessel_count_tanker.toLocaleString() + " |");
+      lines.push("| Congestion Risk | " + inference.congestionRisk + " |");
+      lines.push("| Supply Chain Role | " + inference.supplyChainRole + " |");
+      lines.push("| Nearest Chokepoint | " + proximity.chokepoint.name + " |");
+      lines.push("| Distance to Chokepoint | " + formatDistanceKm(proximity.distanceKm) + " |");
+      lines.push("| Vulnerability Score | " + vulnerability.score + " |");
+      lines.push("| Continent | " + (selectedPortData.continent || "—") + " |");
+      lines.push("");
+      lines.push("### Economic Narrative");
+      lines.push("");
+      let narrative = inference.analysis;
+      if (vulnerability.isDisrupted) {
+        narrative += DISRUPTION_ALERT;
+      }
+      lines.push(narrative.trim());
+      lines.push("");
+    }
+
+    lines.push("---");
+    lines.push("");
+    lines.push("*Report generated client-side by TankerMap. Not an official IMF forecast.*");
+
+    downloadTextFile(
+      "portwatch-scenario-report.md",
+      lines.join("\n"),
+      "text/markdown;charset=utf-8"
+    );
+
+    console.log("Scenario report exported");
+  }
+
+  function openMethodologyDrawer() {
+    ui.methodologyDrawer.classList.add("methodology-drawer--open");
+    ui.methodologyDrawer.setAttribute("aria-hidden", "false");
+    document.body.classList.add("drawer-open");
+    ui.btnCloseMethodology.focus();
+  }
+
+  function closeMethodologyDrawer() {
+    ui.methodologyDrawer.classList.remove("methodology-drawer--open");
+    ui.methodologyDrawer.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("drawer-open");
+    ui.btnMethodology.focus();
+  }
+
+  function initActionUI() {
+    ui.btnExportReport.addEventListener("click", exportScenarioReport);
+    ui.btnMethodology.addEventListener("click", openMethodologyDrawer);
+    ui.btnCloseMethodology.addEventListener("click", closeMethodologyDrawer);
+    ui.methodologyBackdrop.addEventListener("click", closeMethodologyDrawer);
+
+    document.addEventListener("keydown", function (event) {
+      if (
+        event.key === "Escape" &&
+        ui.methodologyDrawer.classList.contains("methodology-drawer--open")
+      ) {
+        closeMethodologyDrawer();
+      }
+    });
   }
 
   function initFilterUI() {
@@ -1206,6 +1360,7 @@
     cacheDomElements();
     initFilterUI();
     initSimulatorUI();
+    initActionUI();
     initMap();
     fetchPortData();
   }

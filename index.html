@@ -208,6 +208,25 @@
           </div>
         </section>
 
+        <!-- Section E: Export & Documentation -->
+        <section class="action-row mt-4" aria-label="Export and documentation">
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button id="btn-export-report" type="button" class="action-btn action-btn--primary">
+              <svg class="action-btn__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10 2a1 1 0 0 1 1 1v7.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4 4a1 1 0 0 1-1.414 0l-4-4a1 1 0 1 1 1.414-1.414L9 10.586V3a1 1 0 0 1 1-1z"/>
+                <path d="M3 14a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z"/>
+              </svg>
+              Export Scenario Report
+            </button>
+            <button id="btn-methodology" type="button" class="action-btn action-btn--secondary">
+              <svg class="action-btn__icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0zm-7-4a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM9 9a1 1 0 0 0 0 2v3a1 1 0 0 0 2 0v-3a1 1 0 0 0-1-1H9z" clip-rule="evenodd"/>
+              </svg>
+              Economic Methodology
+            </button>
+          </div>
+        </section>
+
       </div>
 
       <footer class="sidebar-footer shrink-0 border-t border-border-subtle px-5 py-3">
@@ -233,6 +252,101 @@
       <div id="map" class="map-canvas" role="application" aria-label="Interactive port activity map"></div>
     </main>
 
+  </div>
+
+  <!-- Economic Methodology Drawer -->
+  <div
+    id="methodology-drawer"
+    class="methodology-drawer"
+    aria-hidden="true"
+    role="presentation"
+  >
+    <div id="methodology-backdrop" class="methodology-drawer__backdrop" tabindex="-1"></div>
+    <div
+      class="methodology-drawer__panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="methodology-title"
+    >
+      <header class="methodology-drawer__header">
+        <div>
+          <p class="section-label methodology-label">Documentation</p>
+          <h2 id="methodology-title" class="text-lg font-semibold text-white">Economic Methodology</h2>
+        </div>
+        <button
+          id="btn-close-methodology"
+          type="button"
+          class="methodology-drawer__close"
+          aria-label="Close methodology panel"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 0 1 1.414 0L10 8.586l4.293-4.293a1 1 0 1 1 1.414 1.414L11.414 10l4.293 4.293a1 1 0 0 1-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 0 1-1.414-1.414L8.586 10 4.293 5.707a1 1 0 0 1 0-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
+      </header>
+
+      <div class="methodology-drawer__content">
+        <article class="methodology-article">
+          <h3>Nowcasting Supply Chains</h3>
+          <p>
+            TankerMap leverages IMF PortWatch vessel telemetry to nowcast maritime energy flows in near real time.
+            Distinct tanker counts at port nodes function as a <strong>leading macroeconomic indicator</strong>:
+            throughput density precedes official trade statistics by weeks, offering early signals on crude import
+            demand, refinery utilization, and regional inventory builds.
+          </p>
+          <p>
+            When aggregate tanker traffic concentrates at primary energy hubs, arbitrageurs interpret the signal as
+            tightening physical availability—often repricing Brent-linked futures before customs data confirms the shift.
+            Conversely, dispersion toward secondary feeder ports may indicate rerouting, stock draws, or sanctions-driven
+            trade lane substitution.
+          </p>
+
+          <h3>Throughput Tiers &amp; Congestion Risk</h3>
+          <p>
+            Ports are classified by observed tanker vessel counts into three operational tiers. Hubs exceeding
+            <strong>150 tankers</strong> are modeled as global chokepoints where congestion, labor action, or geopolitical
+            friction can transmit instantly into spot freight markets. Regional nodes (50–150) anchor localized energy
+            security, while feeder ports (&lt;50) carry limited systemic weight but remain relevant for granular trade analysis.
+          </p>
+
+          <h3>Haversine Vulnerability &amp; Geographic Bottlenecks</h3>
+          <p>
+            Strategic vulnerability is computed by measuring great-circle distance from each port to five monitored
+            chokepoints—Suez, Panama, Hormuz, Bab el-Mandeb, and Malacca—using Leaflet&rsquo;s geodesic distance engine
+            (equivalent to the Haversine formula on the WGS-84 spheroid).
+          </p>
+          <p>
+            Proximity to a bottleneck elevates a port&rsquo;s <strong>supply chain vulnerability score</strong> because
+            maritime trade is path-dependent: closing a narrow strait does not merely delay cargo—it forces costly
+            rerouting. A Suez or Hormuz disruption typically redirects tankers around the
+            <strong>Cape of Good Hope</strong>, adding an estimated <strong>10–14 days</strong> to voyage times, increasing
+            fuel burn, tightening effective vessel supply, and spiking time-charter equivalent (TCE) rates.
+          </p>
+
+          <h3>Geopolitical Shock Simulation</h3>
+          <p>
+            The shock simulator models counterfactual closure of individual chokepoints. Dependent ports—those whose
+            nearest strategic gateway is closed—are escalated to <strong>CRITICAL (DISRUPTED)</strong> status. This
+            reflects the economic theory of <em>exposure through network dependency</em>: a port need not sit inside a
+            closed strait to suffer cascading cost shocks if its optimal routing topology requires transit through it.
+          </p>
+
+          <h3>Inflation &amp; Freight Rate Transmission</h3>
+          <p>
+            Country-level inflation risk rises when import-dependent economies rely on ports proximate to disrupted
+            corridors. Higher spot freight rates raise the landed cost of crude and refined products, feeding through
+            to consumer energy prices, transport costs, and—where pass-through is rapid—headline CPI. TankerMap surfaces
+            these linkages as narrative inference, not forecasts; users should treat outputs as structured scenario
+            analysis grounded in observed vessel geography.
+          </p>
+
+          <p class="methodology-footnote">
+            Data source: IMF PortWatch · Open-source crisis simulation platform · Reports exported from this panel
+            reflect the active filter, simulation, and selection state at time of export.
+          </p>
+        </article>
+      </div>
+    </div>
   </div>
 
   <script
