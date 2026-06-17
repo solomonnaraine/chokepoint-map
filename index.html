@@ -73,15 +73,15 @@
 
       <div class="sidebar-content flex-1 overflow-y-auto overflow-x-hidden px-5 py-5">
 
-        <!-- Section A: Selected Port Header -->
+        <!-- Section A: Context Header (Global or Port) -->
         <section id="port-selection" class="analysis-header mb-6" aria-live="polite">
-          <p class="section-label mb-2">Selected Port</p>
-          <div id="port-header" class="analysis-header__body analysis-header--idle rounded-lg border border-border-subtle bg-surface px-4 py-4">
-            <h2 id="selected-port-name" class="text-base font-semibold leading-snug text-slate-400">
-              Select a port on the map to begin analysis
+          <p id="panel-context-label" class="section-label mb-2">Global Outlook</p>
+          <div id="port-header" class="analysis-header__body analysis-header--global rounded-lg border border-border-subtle bg-surface px-4 py-4">
+            <h2 id="selected-port-name" class="text-lg font-semibold leading-snug text-white">
+              Global Maritime Outlook
             </h2>
-            <p id="selected-port-country" class="mt-1 font-mono text-[11px] uppercase tracking-widest text-slate-600">
-              Awaiting selection
+            <p id="selected-port-country" class="mt-1 font-mono text-[11px] uppercase tracking-widest text-slate-500">
+              IMF PortWatch · Aggregate Intelligence
             </p>
           </div>
         </section>
@@ -91,16 +91,16 @@
           <h2 id="metrics-heading" class="section-label">Key Metrics</h2>
           <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div class="metric-card rounded-md border border-border-subtle bg-surface p-3 sm:col-span-2">
-              <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Total Tanker Traffic</p>
+              <p id="metric-traffic-label" class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Total Active Tankers</p>
               <p id="metric-tanker-traffic" class="mt-1 font-mono text-xl font-medium text-white">—</p>
-              <p class="mt-0.5 text-[11px] text-slate-600">Distinct tanker vessels observed</p>
+              <p id="metric-traffic-sublabel" class="mt-0.5 text-[11px] text-slate-600">Tracked globally across all port nodes</p>
             </div>
             <div class="metric-card rounded-md border border-border-subtle bg-surface p-3">
-              <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Congestion Risk</p>
+              <p id="metric-congestion-label" class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Elevated Risk Ports</p>
               <p id="metric-congestion-risk" class="mt-1 font-mono text-lg font-medium text-slate-500">—</p>
             </div>
             <div class="metric-card rounded-md border border-border-subtle bg-surface p-3">
-              <p class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Supply Chain Role</p>
+              <p id="metric-role-label" class="font-mono text-[10px] uppercase tracking-wider text-slate-500">Ports Monitored</p>
               <p id="metric-supply-role" class="mt-1 text-sm font-medium leading-snug text-slate-500">—</p>
             </div>
           </div>
@@ -142,8 +142,26 @@
             id="economic-analysis"
             class="analysis-block mt-3 rounded-lg border border-border-subtle bg-surface px-4 py-4"
           >
-            <p id="analysis-text" class="analysis-text text-sm leading-relaxed text-slate-500">
-              Click any tanker port marker on the map to generate a real-time economic assessment based on observed vessel traffic density.
+            <p id="analysis-text" class="analysis-text text-sm leading-relaxed text-slate-400">
+              Loading global maritime intelligence from IMF PortWatch…
+            </p>
+          </div>
+        </section>
+
+        <!-- Section D: Geopolitical Shock Simulator -->
+        <section class="mb-2" aria-labelledby="simulator-heading">
+          <h2 id="simulator-heading" class="section-label simulator-label">
+            Geopolitical Shock Simulator
+          </h2>
+          <div id="shock-simulator" class="shock-simulator mt-3 rounded-lg border p-3">
+            <p class="simulator-desc mb-3 text-[11px] leading-relaxed text-slate-500">
+              Toggle chokepoint closures to model cascading supply chain disruption across dependent port nodes.
+            </p>
+            <div id="chokepoint-toggles" class="space-y-2" role="group" aria-label="Chokepoint status controls">
+              <!-- Populated by app.js -->
+            </div>
+            <p id="simulator-status" class="simulator-status mt-3 font-mono text-[10px] uppercase tracking-wider text-slate-600">
+              All chokepoints active
             </p>
           </div>
         </section>

@@ -31,17 +31,31 @@
 
   const MARKER_COLOR = "#22d3ee";
   const MARKER_SELECTED_COLOR = "#f97316";
+  const MARKER_DISRUPTED_COLOR = "#f43f5e";
+  const MARKER_DISRUPTED_STROKE = "#fb7185";
   const MARKER_MIN_RADIUS = 4;
   const MARKER_MAX_RADIUS = 18;
+
+  const DISRUPTION_ALERT =
+    " CRITICAL ALERT: Shipping lanes closed. Alternative routing around Cape of Good Hope required, adding an estimated 10–14 days to transit times and spiking spot freight rates.";
 
   let map;
   let portLayer;
   let selectedMarker = null;
+  let selectedPortData = null;
+  let viewMode = "global";
+  let allPorts = [];
+  const closedChokepoints = new Set();
 
   const ui = {
+    panelContextLabel: null,
     portHeader: null,
     portName: null,
     portCountry: null,
+    trafficLabel: null,
+    trafficSublabel: null,
+    congestionLabel: null,
+    roleLabel: null,
     tankerTraffic: null,
     congestionRisk: null,
     supplyRole: null,
@@ -52,12 +66,19 @@
     analysisText: null,
     analysisBlock: null,
     analysisTimestamp: null,
+    chokepointToggles: null,
+    simulatorStatus: null,
   };
 
   function cacheDomElements() {
+    ui.panelContextLabel = document.getElementById("panel-context-label");
     ui.portHeader = document.getElementById("port-header");
     ui.portName = document.getElementById("selected-port-name");
     ui.portCountry = document.getElementById("selected-port-country");
+    ui.trafficLabel = document.getElementById("metric-traffic-label");
+    ui.trafficSublabel = document.getElementById("metric-traffic-sublabel");
+    ui.congestionLabel = document.getElementById("metric-congestion-label");
+    ui.roleLabel = document.getElementById("metric-role-label");
     ui.tankerTraffic = document.getElementById("metric-tanker-traffic");
     ui.congestionRisk = document.getElementById("metric-congestion-risk");
     ui.supplyRole = document.getElementById("metric-supply-role");
@@ -68,6 +89,8 @@
     ui.analysisText = document.getElementById("analysis-text");
     ui.analysisBlock = document.getElementById("economic-analysis");
     ui.analysisTimestamp = document.getElementById("analysis-timestamp");
+    ui.chokepointToggles = document.getElementById("chokepoint-toggles");
+    ui.simulatorStatus = document.getElementById("simulator-status");
   }
 
   function initMap() {
@@ -87,6 +110,10 @@
     }).addTo(map);
 
     portLayer = L.layerGroup().addTo(map);
+
+    map.on("click", function () {
+      showGlobalOutlook();
+    });
 
     requestAnimationFrame(function () {
       map.invalidateSize();
@@ -203,6 +230,304 @@
     }
 
     return "~" + Math.round(distanceKm).toLocaleString() + " km";
+  }
+
+  function getChokepointByName(chokepointName) {
+    return STRATEGIC_CHOKEPOINTS.find(function (cp) {
+      return cp.name === chokepointName;
+    });
+  }
+
+  function computeGlobalStats() {
+    let totalTankers = 0;
+    let elevatedRiskCount = 0;
+    let disruptedCount = 0;
+
+    allPorts.forEach(function (entry) {
+      totalTankers += entry.port.vessel_count_tanker;
+
+      if (entry.isDisrupted) {
+        disruptedCount += 1;
+        elevatedRiskCount += 1;
+        return;
+      }
+
+      const vulnerability = assessVulnerability(entry.port, entry.proximity);
+      if (vulnerability.score === "High" || vulnerability.score === "Critical") {
+        elevatedRiskCount += 1;
+      }
+    });
+
+    return {
+      totalTankers: totalTankers,
+      elevatedRiskCount: elevatedRiskCount,
+      disruptedCount: disruptedCount,
+      totalPorts: allPorts.length,
+    };
+  }
+
+  function getEffectiveVulnerability(portData, proximity) {
+    if (closedChokepoints.has(proximity.chokepoint.id)) {
+      return {
+        score: "CRITICAL (DISRUPTED)",
+        scoreClass: "text-rose-400",
+        cardClass: "vulnerability-card--critical",
+        isDisrupted: true,
+      };
+    }
+
+    const base = assessVulnerability(portData, proximity);
+    base.isDisrupted = false;
+    return base;
+  }
+
+  function restoreMarkerStyle(entry) {
+    entry.marker.setStyle({
+      radius: entry.baseRadius,
+      fillColor: MARKER_COLOR,
+      color: "#67e8f9",
+      weight: 1.5,
+      opacity: 0.95,
+      fillOpacity: 0.65,
+    });
+
+    const element = entry.marker.getElement();
+    if (element) {
+      element.classList.remove("marker-disrupted");
+    }
+  }
+
+  function applyDisruptedMarkerStyle(entry) {
+    entry.marker.setStyle({
+      radius: entry.baseRadius,
+      fillColor: MARKER_DISRUPTED_COLOR,
+      color: MARKER_DISRUPTED_STROKE,
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.85,
+    });
+
+    const element = entry.marker.getElement();
+    if (element) {
+      element.classList.add("marker-disrupted");
+    }
+  }
+
+  function applyDisruptionState() {
+    allPorts.forEach(function (entry) {
+      const isDisrupted = closedChokepoints.has(entry.proximity.chokepoint.id);
+      entry.isDisrupted = isDisrupted;
+
+      if (entry.marker === selectedMarker) {
+        return;
+      }
+
+      if (isDisrupted) {
+        applyDisruptedMarkerStyle(entry);
+      } else {
+        restoreMarkerStyle(entry);
+      }
+    });
+
+    updateSimulatorStatus();
+  }
+
+  function simulateDisruption(chokepointName, isClosed) {
+    const chokepoint = getChokepointByName(chokepointName);
+
+    if (!chokepoint) {
+      console.error("Unknown chokepoint:", chokepointName);
+      return;
+    }
+
+    if (isClosed) {
+      closedChokepoints.add(chokepoint.id);
+    } else {
+      closedChokepoints.delete(chokepoint.id);
+    }
+
+    applyDisruptionState();
+
+    if (viewMode === "port" && selectedPortData) {
+      updateEconomicAnalysis(selectedPortData);
+    } else {
+      showGlobalOutlook();
+    }
+  }
+
+  function updateSimulatorStatus() {
+    if (closedChokepoints.size === 0) {
+      ui.simulatorStatus.textContent = "All chokepoints active";
+      ui.simulatorStatus.className =
+        "simulator-status mt-3 font-mono text-[10px] uppercase tracking-wider text-slate-600";
+      return;
+    }
+
+    const disruptedPorts = allPorts.filter(function (entry) {
+      return entry.isDisrupted;
+    }).length;
+
+    ui.simulatorStatus.textContent =
+      closedChokepoints.size +
+      " closure(s) active · " +
+      disruptedPorts +
+      " ports disrupted";
+    ui.simulatorStatus.className =
+      "simulator-status mt-3 font-mono text-[10px] uppercase tracking-wider text-rose-400";
+  }
+
+  function initSimulatorUI() {
+    ui.chokepointToggles.innerHTML = "";
+
+    STRATEGIC_CHOKEPOINTS.forEach(function (chokepoint) {
+      const row = document.createElement("div");
+      row.className = "chokepoint-toggle";
+      row.innerHTML =
+        '<span class="chokepoint-toggle__name">' +
+        chokepoint.name +
+        '</span><button type="button" class="chokepoint-toggle__btn chokepoint-toggle__btn--open" data-chokepoint="' +
+        chokepoint.name +
+        '" aria-pressed="false">Active</button>';
+
+      const button = row.querySelector("button");
+      button.addEventListener("click", function () {
+        const isClosed = button.getAttribute("aria-pressed") !== "true";
+        button.setAttribute("aria-pressed", isClosed ? "true" : "false");
+        button.textContent = isClosed ? "Closed" : "Active";
+        button.className =
+          "chokepoint-toggle__btn " +
+          (isClosed ? "chokepoint-toggle__btn--closed" : "chokepoint-toggle__btn--open");
+        simulateDisruption(chokepoint.name, isClosed);
+      });
+
+      ui.chokepointToggles.appendChild(row);
+    });
+  }
+
+  function clearMarkerSelection() {
+    if (!selectedMarker) {
+      return;
+    }
+
+    const entry = allPorts.find(function (item) {
+      return item.marker === selectedMarker;
+    });
+
+    if (entry) {
+      if (entry.isDisrupted) {
+        applyDisruptedMarkerStyle(entry);
+      } else {
+        restoreMarkerStyle(entry);
+      }
+    }
+
+    selectedMarker = null;
+    selectedPortData = null;
+    map.closePopup();
+  }
+
+  function showGlobalOutlook() {
+    viewMode = "global";
+    clearMarkerSelection();
+
+    const stats = computeGlobalStats();
+
+    ui.panelContextLabel.textContent = "Global Outlook";
+    ui.portHeader.classList.remove("analysis-header--active");
+    ui.portHeader.classList.add("analysis-header--global");
+
+    ui.portName.textContent = "Global Maritime Outlook";
+    ui.portName.className = "text-lg font-semibold leading-snug text-white";
+    ui.portCountry.textContent = "IMF PortWatch · Aggregate Intelligence";
+    ui.portCountry.className =
+      "mt-1 font-mono text-[11px] uppercase tracking-widest text-slate-500";
+
+    ui.trafficLabel.textContent = "Total Active Tankers";
+    ui.trafficSublabel.textContent = "Tracked globally across all port nodes";
+    ui.tankerTraffic.textContent = stats.totalTankers.toLocaleString();
+
+    ui.congestionLabel.textContent = "Elevated Risk Ports";
+    ui.congestionRisk.textContent = stats.elevatedRiskCount.toLocaleString();
+    setMetricClasses(
+      ui.congestionRisk,
+      "mt-1 font-mono text-lg font-semibold",
+      stats.elevatedRiskCount > 0 ? "text-amber-400" : "text-emerald-400"
+    );
+
+    ui.roleLabel.textContent = "Ports Monitored";
+    ui.supplyRole.textContent = stats.totalPorts.toLocaleString();
+    setMetricClasses(
+      ui.supplyRole,
+      "mt-1 font-mono text-lg font-medium",
+      "text-sky-300"
+    );
+
+    ui.nearestChokepoint.textContent = STRATEGIC_CHOKEPOINTS.length + " Strategic Chokepoints";
+    ui.nearestChokepoint.className =
+      "vulnerability-metric__value mt-1 text-sm font-medium text-fuchsia-200";
+
+    ui.chokepointDistance.textContent =
+      stats.elevatedRiskCount + " ports at High / Critical risk";
+    ui.chokepointDistance.className =
+      "vulnerability-metric__value mt-1 font-mono text-sm text-violet-300";
+
+    if (stats.disruptedCount > 0) {
+      ui.vulnerabilityScore.textContent =
+        stats.disruptedCount + " CRITICAL (DISRUPTED)";
+      setMetricClasses(
+        ui.vulnerabilityScore,
+        "vulnerability-metric__value mt-1 font-mono text-sm font-semibold uppercase tracking-wide",
+        "text-rose-400"
+      );
+      ui.vulnerabilityCard.classList.remove(
+        "vulnerability-card--low",
+        "vulnerability-card--medium",
+        "vulnerability-card--high"
+      );
+      ui.vulnerabilityCard.classList.add("vulnerability-card--critical");
+    } else {
+      ui.vulnerabilityScore.textContent = "Nominal";
+      setMetricClasses(
+        ui.vulnerabilityScore,
+        "vulnerability-metric__value mt-1 font-mono text-sm font-semibold uppercase tracking-wide",
+        "text-emerald-400"
+      );
+      ui.vulnerabilityCard.classList.remove(
+        "vulnerability-card--critical",
+        "vulnerability-card--high",
+        "vulnerability-card--medium"
+      );
+      ui.vulnerabilityCard.classList.add("vulnerability-card--low");
+    }
+
+    let analysis =
+      "Global maritime intelligence synthesizes " +
+      stats.totalTankers.toLocaleString() +
+      " active tanker vessel observations across " +
+      stats.totalPorts.toLocaleString() +
+      " port nodes. Currently, " +
+      stats.elevatedRiskCount.toLocaleString() +
+      " ports register elevated vulnerability (High or Critical) based on throughput density and proximity to strategic chokepoints. Select any port marker for granular economic inference, or use the shock simulator below to model geopolitical disruption scenarios.";
+
+    if (stats.disruptedCount > 0) {
+      analysis +=
+        " SIMULATION ACTIVE: " +
+        stats.disruptedCount.toLocaleString() +
+        " port nodes are now flagged as CRITICAL (DISRUPTED) due to simulated chokepoint closures. Expect immediate freight rate volatility and extended transit times across affected trade lanes.";
+    }
+
+    ui.analysisText.textContent = analysis;
+    ui.analysisText.className = "analysis-text text-sm leading-relaxed text-slate-300";
+    ui.analysisBlock.classList.add("analysis-block--updated");
+
+    const now = new Date();
+    ui.analysisTimestamp.textContent =
+      "Global snapshot " +
+      now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    requestAnimationFrame(function () {
+      ui.analysisBlock.classList.remove("analysis-block--updated");
+    });
   }
 
   function assessVulnerability(portData, proximity) {
@@ -383,21 +708,26 @@
     element.className = baseClasses + " " + colorClass;
   }
 
-  function highlightMarker(marker) {
-    if (selectedMarker) {
-      selectedMarker.setStyle({
-        fillColor: MARKER_COLOR,
-        color: "#67e8f9",
-        weight: 1.5,
-        fillOpacity: 0.65,
+  function highlightMarker(marker, entry) {
+    if (selectedMarker && selectedMarker !== marker) {
+      const previous = allPorts.find(function (item) {
+        return item.marker === selectedMarker;
       });
+
+      if (previous) {
+        if (previous.isDisrupted) {
+          applyDisruptedMarkerStyle(previous);
+        } else {
+          restoreMarkerStyle(previous);
+        }
+      }
     }
 
     marker.setStyle({
-      fillColor: MARKER_SELECTED_COLOR,
-      color: "#fdba74",
+      fillColor: entry.isDisrupted ? MARKER_DISRUPTED_COLOR : MARKER_SELECTED_COLOR,
+      color: entry.isDisrupted ? "#fda4af" : "#fdba74",
       weight: 2.5,
-      fillOpacity: 0.9,
+      fillOpacity: 0.95,
     });
 
     selectedMarker = marker;
@@ -431,11 +761,19 @@
   }
 
   function updateEconomicAnalysis(portData) {
-    const proximity = findNearestChokepoint(portData.lat, portData.lon);
-    const vulnerability = assessVulnerability(portData, proximity);
-    const inference = generateEconomicInference(portData, proximity, vulnerability);
+    viewMode = "port";
+    selectedPortData = portData;
 
-    ui.portHeader.classList.remove("analysis-header--idle");
+    const entry = allPorts.find(function (item) {
+      return item.port.portid === portData.portid;
+    });
+    const proximity = entry ? entry.proximity : findNearestChokepoint(portData.lat, portData.lon);
+    const vulnerability = getEffectiveVulnerability(portData, proximity);
+    const baseVulnerability = assessVulnerability(portData, proximity);
+    const inference = generateEconomicInference(portData, proximity, baseVulnerability);
+
+    ui.panelContextLabel.textContent = "Selected Port";
+    ui.portHeader.classList.remove("analysis-header--global");
     ui.portHeader.classList.add("analysis-header--active");
 
     ui.portName.textContent = portData.portname;
@@ -445,8 +783,11 @@
     ui.portCountry.className =
       "mt-1 font-mono text-[11px] uppercase tracking-widest text-accent";
 
+    ui.trafficLabel.textContent = "Total Tanker Traffic";
+    ui.trafficSublabel.textContent = "Distinct tanker vessels observed";
     ui.tankerTraffic.textContent = portData.vessel_count_tanker.toLocaleString();
 
+    ui.congestionLabel.textContent = "Congestion Risk";
     ui.congestionRisk.textContent = inference.congestionRisk;
     setMetricClasses(
       ui.congestionRisk,
@@ -454,6 +795,7 @@
       inference.riskClass
     );
 
+    ui.roleLabel.textContent = "Supply Chain Role";
     ui.supplyRole.textContent = inference.supplyChainRole;
     setMetricClasses(
       ui.supplyRole,
@@ -463,8 +805,16 @@
 
     updateVulnerabilityCard(vulnerability, proximity);
 
-    ui.analysisText.textContent = inference.analysis;
-    ui.analysisText.className = "analysis-text text-sm leading-relaxed text-slate-300";
+    let analysisText = inference.analysis;
+    if (vulnerability.isDisrupted) {
+      analysisText += DISRUPTION_ALERT;
+      ui.analysisText.className =
+        "analysis-text text-sm leading-relaxed text-slate-300 analysis-text--alert";
+    } else {
+      ui.analysisText.className = "analysis-text text-sm leading-relaxed text-slate-300";
+    }
+
+    ui.analysisText.textContent = analysisText;
 
     ui.analysisBlock.classList.add("analysis-block--updated");
 
@@ -497,6 +847,8 @@
   }
 
   function addPortMarkers(portFeatures) {
+    allPorts = [];
+
     const ports = portFeatures
       .map(function (feature) {
         const attrs = feature.attributes || {};
@@ -533,6 +885,7 @@
         minCount,
         maxCount
       );
+      const proximity = findNearestChokepoint(port.lat, port.lon);
 
       const marker = L.circleMarker([port.lat, port.lon], {
         radius: radius,
@@ -543,15 +896,34 @@
         fillOpacity: 0.65,
       });
 
+      const entry = {
+        port: port,
+        marker: marker,
+        proximity: proximity,
+        baseRadius: radius,
+        isDisrupted: false,
+      };
+
+      allPorts.push(entry);
+
+      marker.on("add", function () {
+        const element = marker.getElement();
+        if (element) {
+          element.classList.add("port-marker");
+        }
+      });
+
       marker.bindPopup(buildPopupContent(port));
-      marker.on("click", function () {
-        highlightMarker(marker);
+      marker.on("click", function (event) {
+        L.DomEvent.stopPropagation(event);
+        highlightMarker(marker, entry);
         updateEconomicAnalysis(port);
       });
       portLayer.addLayer(marker);
     });
 
     console.log("Rendered " + ports.length + " port markers on map");
+    showGlobalOutlook();
   }
 
   async function fetchPortData() {
@@ -584,6 +956,7 @@
   function init() {
     console.log("System initialized");
     cacheDomElements();
+    initSimulatorUI();
     initMap();
     fetchPortData();
   }
