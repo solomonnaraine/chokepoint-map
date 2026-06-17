@@ -1,5 +1,5 @@
 /**
- * TankerMap — Main Application Controller
+ * ChokePoint Map — Main Application Controller
  */
 
 (function () {
@@ -172,10 +172,10 @@
     const readableTime = new Date().toLocaleString();
     const lines = [];
 
-    lines.push("# PortWatch Scenario Report");
+    lines.push("# ChokePoint Map - Scenario Report");
     lines.push("");
     lines.push("**Generated:** " + readableTime + " (`" + timestamp + "`)");
-    lines.push("**Platform:** TankerMap · IMF PortWatch Open Intelligence");
+    lines.push("**Platform:** ChokePoint Map · IMF PortWatch Open Intelligence");
     lines.push("");
     lines.push("---");
     lines.push("");
@@ -246,10 +246,10 @@
 
     lines.push("---");
     lines.push("");
-    lines.push("*Report generated client-side by TankerMap. Not an official IMF forecast.*");
+    lines.push("*Report generated client-side by ChokePoint Map. Not an official IMF forecast.*");
 
     downloadTextFile(
-      "portwatch-scenario-report.md",
+      "chokepoint-map-scenario.md",
       lines.join("\n"),
       "text/markdown;charset=utf-8"
     );
@@ -1356,7 +1356,7 @@
   }
 
   function init() {
-    console.log("System initialized");
+    console.log("ChokePoint Map initialized");
     cacheDomElements();
     initFilterUI();
     initSimulatorUI();

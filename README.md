@@ -1,4 +1,4 @@
-# 🚢 IMF PortWatch API Explorer & Geopolitical Shock Simulator
+# 🚢 ChokePoint Map
 
 [![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/HTML)
 [![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
@@ -7,7 +7,7 @@
 [![IMF PortWatch](https://img.shields.io/badge/Data-IMF_PortWatch-003366?logo=worldbank&logoColor=white)](https://portwatch.imf.org/)
 [![GitHub Pages](https://img.shields.io/badge/Deploy-GitHub_Pages-222?logo=github&logoColor=white)](https://pages.github.com/)
 
-A **data-dense, open-source macroeconomic monitoring tool** built with pure vanilla web technologies. TankerMap ingests automated satellite AIS data from the [IMF PortWatch](https://portwatch.imf.org/) platform to map global tanker flows, assess port strategic vulnerabilities, and simulate major supply chain disruptions—such as closing the **Suez Canal** or **Strait of Hormuz**—with real-time algorithmic economic inference generation.
+A **data-dense, open-source macroeconomic monitoring tool** built with pure vanilla web technologies. **ChokePoint Map** ingests automated satellite AIS data from the [IMF PortWatch](https://portwatch.imf.org/) platform to map global tanker flows, assess port strategic vulnerabilities, and simulate major supply chain disruptions—such as closing the **Suez Canal** or **Strait of Hormuz**—with real-time algorithmic economic inference generation.
 
 > **No build step. No framework. No backend.** Clone, serve, and deploy.
 
@@ -22,7 +22,7 @@ A **data-dense, open-source macroeconomic monitoring tool** built with pure vani
 | **🎯 Strategic Vulnerability Index** | Haversine-distance analysis against five monitored chokepoints (Suez, Panama, Hormuz, Bab el-Mandeb, Malacca) with Low → Critical vulnerability scoring. |
 | **⚡ Geopolitical Shock Simulator** | Toggle chokepoint closures to instantly escalate dependent ports to **CRITICAL (DISRUPTED)**, flash map markers, and inject crisis alerts into live analysis text. |
 | **🔎 Data Filtering & Sorting Suite** | Slice the fleet by region, risk level, and sort metric—map markers and global aggregate stats update in real time. |
-| **📄 Client-side Markdown Report Exporter** | One-click export of the full scenario state (filters, closures, stats, port narrative) to `portwatch-scenario-report.md`. |
+| **📄 Client-side Markdown Report Exporter** | One-click export of the full scenario state (filters, closures, stats, port narrative) to `chokepoint-map-scenario.md`. |
 | **📚 Economic Methodology Drawer** | Built-in documentation primer covering nowcasting theory, chokepoint vulnerability, and Cape of Good Hope rerouting economics. |
 
 ---
@@ -57,8 +57,8 @@ A **data-dense, open-source macroeconomic monitoring tool** built with pure vani
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-username>/TankerMap.git
-cd TankerMap
+git clone https://github.com/<your-username>/ChokePoint-Map.git
+cd ChokePoint-Map
 ```
 
 ### 2. Run a local server
@@ -90,7 +90,7 @@ Open **`http://localhost:8080`** in your browser.
 
 ## 🌐 Deploy to GitHub Pages
 
-TankerMap is a **static site**—all files live at the repository root. Deployment takes under two minutes.
+ChokePoint Map is a **static site**—all files live at the repository root. Deployment takes under two minutes.
 
 ### Option A — GitHub UI *(recommended)*
 
@@ -102,7 +102,7 @@ TankerMap is a **static site**—all files live at the repository root. Deployme
 4. Save. Your site will be live at:
 
    ```
-   https://<your-username>.github.io/TankerMap/
+   https://<your-username>.github.io/ChokePoint-Map/
    ```
 
 ### Option B — GitHub Actions *(optional)*
@@ -114,7 +114,7 @@ No workflow file is required for a root-level static site. GitHub Pages serves `
 ## 📁 Project Structure
 
 ```
-TankerMap/
+ChokePoint-Map/
 ├── index.html      # Application shell, sidebar layout, methodology drawer
 ├── app.js          # Map init, API fetch, inference engine, filters, export
 ├── styles.css      # Custom overrides, animations, drawer & simulator UI
@@ -146,7 +146,7 @@ flowchart LR
 
 ## ⚠️ Disclaimer
 
-TankerMap is an **open-source educational and scenario-analysis tool**. Economic narratives are algorithmically generated heuristics—not official IMF forecasts, investment advice, or policy guidance. Data © [IMF PortWatch](https://portwatch.imf.org/).
+ChokePoint Map is an **open-source educational and scenario-analysis tool**. Economic narratives are algorithmically generated heuristics—not official IMF forecasts, investment advice, or policy guidance. Data © [IMF PortWatch](https://portwatch.imf.org/).
 
 ---
 
