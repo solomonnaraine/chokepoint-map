@@ -56,14 +56,16 @@
     Low: 1,
   };
 
-  const TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+  const TILE_URL =
+    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
   const TILE_ATTRIBUTION =
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-  const MARKER_COLOR = "#22d3ee";
-  const MARKER_SELECTED_COLOR = "#f97316";
-  const MARKER_DISRUPTED_COLOR = "#f43f5e";
-  const MARKER_DISRUPTED_STROKE = "#fb7185";
+  const MARKER_COLOR = "#0d9488";
+  const MARKER_STROKE = "#0f766e";
+  const MARKER_SELECTED_COLOR = "#ea580c";
+  const MARKER_DISRUPTED_COLOR = "#db2777";
+  const MARKER_DISRUPTED_STROKE = "#be185d";
   const MARKER_MIN_RADIUS = 4;
   const MARKER_MAX_RADIUS = 18;
 
@@ -408,7 +410,7 @@
     if (visibleCount === total) {
       ui.filterResultCount.textContent = total + " ports";
       ui.filterResultCount.className =
-        "font-mono text-[10px] uppercase tracking-wider text-slate-600";
+        "font-mono text-[10px] uppercase tracking-wider text-slate-500";
       return;
     }
 
@@ -671,10 +673,10 @@
     entry.marker.setStyle({
       radius: entry.baseRadius,
       fillColor: MARKER_COLOR,
-      color: "#67e8f9",
+      color: MARKER_STROKE,
       weight: 1.5,
       opacity: 0.95,
-      fillOpacity: 0.65,
+      fillOpacity: 0.78,
     });
 
     const element = entry.marker.getElement();
@@ -750,7 +752,7 @@
     if (closedChokepoints.size === 0) {
       ui.simulatorStatus.textContent = "All chokepoints active";
       ui.simulatorStatus.className =
-        "simulator-status mt-3 font-mono text-[10px] uppercase tracking-wider text-slate-600";
+        "simulator-status mt-3 font-mono text-[10px] uppercase tracking-wider text-slate-500";
       return;
     }
 
@@ -828,7 +830,7 @@
     ui.portHeader.classList.add("analysis-header--global");
 
     ui.portName.textContent = "Global Maritime Outlook";
-    ui.portName.className = "text-lg font-semibold leading-snug text-white";
+    ui.portName.className = "text-lg font-semibold leading-snug text-slate-900";
     ui.portCountry.textContent = "IMF PortWatch · Aggregate Intelligence";
     ui.portCountry.className =
       "mt-1 font-mono text-[11px] uppercase tracking-widest text-slate-500";
@@ -856,17 +858,17 @@
     setMetricClasses(
       ui.supplyRole,
       "mt-1 font-mono text-lg font-medium",
-      "text-sky-300"
+      "text-sky-700"
     );
 
     ui.nearestChokepoint.textContent = STRATEGIC_CHOKEPOINTS.length + " Strategic Chokepoints";
     ui.nearestChokepoint.className =
-      "vulnerability-metric__value mt-1 text-sm font-medium text-fuchsia-200";
+      "vulnerability-metric__value mt-1 text-sm font-medium text-violet-700";
 
     ui.chokepointDistance.textContent =
       stats.elevatedRiskCount + " ports at High / Critical risk";
     ui.chokepointDistance.className =
-      "vulnerability-metric__value mt-1 font-mono text-sm text-violet-300";
+      "vulnerability-metric__value mt-1 font-mono text-sm text-violet-600";
 
     if (stats.disruptedCount > 0) {
       ui.vulnerabilityScore.textContent =
@@ -917,7 +919,7 @@
     }
 
     ui.analysisText.textContent = analysis;
-    ui.analysisText.className = "analysis-text text-sm leading-relaxed text-slate-300";
+    ui.analysisText.className = "analysis-text text-sm leading-relaxed text-slate-600";
     ui.analysisBlock.classList.add("analysis-block--updated");
 
     const now = new Date();
@@ -947,7 +949,7 @@
     ) {
       return {
         score: "Critical",
-        scoreClass: "text-fuchsia-400",
+        scoreClass: "text-fuchsia-400/90",
         cardClass: "vulnerability-card--critical",
       };
     }
@@ -1069,7 +1071,7 @@
         supplyChainRole: "Regional Distribution Node",
         congestionRisk: "Moderate",
         riskClass: "text-amber-400",
-        roleClass: "text-sky-300",
+        roleClass: "text-sky-700",
         analysis:
           name +
           " functions as a regional distribution node handling " +
@@ -1125,7 +1127,7 @@
 
     marker.setStyle({
       fillColor: entry.isDisrupted ? MARKER_DISRUPTED_COLOR : MARKER_SELECTED_COLOR,
-      color: entry.isDisrupted ? "#fda4af" : "#fdba74",
+      color: entry.isDisrupted ? MARKER_DISRUPTED_STROKE : "#c2410c",
       weight: 2.5,
       fillOpacity: 0.95,
     });
@@ -1138,11 +1140,11 @@
   function updateVulnerabilityCard(vulnerability, proximity) {
     ui.nearestChokepoint.textContent = proximity.chokepoint.name;
     ui.nearestChokepoint.className =
-      "vulnerability-metric__value mt-1 text-sm font-medium text-fuchsia-200";
+      "vulnerability-metric__value mt-1 text-sm font-medium text-violet-700";
 
     ui.chokepointDistance.textContent = formatDistanceKm(proximity.distanceKm);
     ui.chokepointDistance.className =
-      "vulnerability-metric__value mt-1 font-mono text-sm text-violet-300";
+      "vulnerability-metric__value mt-1 font-mono text-sm text-violet-600";
 
     ui.vulnerabilityScore.textContent = vulnerability.score;
     setMetricClasses(
@@ -1177,7 +1179,7 @@
     ui.portHeader.classList.add("analysis-header--active");
 
     ui.portName.textContent = portData.portname;
-    ui.portName.className = "text-lg font-semibold leading-snug text-white";
+    ui.portName.className = "text-lg font-semibold leading-snug text-slate-900";
 
     ui.portCountry.textContent = portData.country;
     ui.portCountry.className =
@@ -1209,9 +1211,9 @@
     if (vulnerability.isDisrupted) {
       analysisText += DISRUPTION_ALERT;
       ui.analysisText.className =
-        "analysis-text text-sm leading-relaxed text-slate-300 analysis-text--alert";
+        "analysis-text text-sm leading-relaxed text-slate-600 analysis-text--alert";
     } else {
-      ui.analysisText.className = "analysis-text text-sm leading-relaxed text-slate-300";
+      ui.analysisText.className = "analysis-text text-sm leading-relaxed text-slate-600";
     }
 
     ui.analysisText.textContent = analysisText;
@@ -1291,10 +1293,10 @@
       const marker = L.circleMarker([port.lat, port.lon], {
         radius: radius,
         fillColor: MARKER_COLOR,
-        color: "#67e8f9",
+        color: MARKER_STROKE,
         weight: 1.5,
         opacity: 0.95,
-        fillOpacity: 0.65,
+        fillOpacity: 0.78,
       });
 
       const entry = {
