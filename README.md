@@ -19,7 +19,7 @@ Open that link in any modern browser and you are ready to go.
 5. **Export a report** — Download a markdown scenario summary of your current filters, closures, and selected port analysis.
 6. **Read the methodology** — Open **Economic Methodology** in the sidebar for a short primer on how the analysis works.
 
-## What it does
+## ✨ Core Features
 
 | Feature | What you get |
 | :--- | :--- |
@@ -30,6 +30,17 @@ Open that link in any modern browser and you are ready to go.
 | **Filters & sorting** | Slice the fleet by region, risk level, tanker volume, and more |
 | **Scenario export** | One-click download to `chokepoint-map-scenario.md` |
 | **Methodology guide** | Built-in explanation of nowcasting, chokepoint risk, and rerouting economics |
+| **📰 Live Geopolitical Intel Feed** | Real-time regional dispatch aggregator that automatically fetches and parses live global news headlines based on the selected port's country or active chokepoint crisis events using a zero-auth, secure CORS-compliant RSS-to-JSON engine. |
+
+## 🏗️ Tech Stack
+
+- **Data:** IMF PortWatch ArcGIS REST FeatureServer API & Real-time Global News RSS-to-JSON Aggregator.
+
+## 📁 Project Structure
+
+```
+app.js          # Map init, API fetch, inference engine, live geopolitical news feed, filters, export
+```
 
 ## Data & disclaimer
 
