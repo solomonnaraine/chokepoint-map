@@ -517,9 +517,10 @@
   }
 
   async function fetchArcGISPage(url, offset, pageSize) {
-    const separator = url.includes("?") ? "&" : "?";
+    const secureUrl = ensureHttps(url);
+    const separator = secureUrl.includes("?") ? "&" : "?";
     const pageUrl =
-      url +
+      secureUrl +
       separator +
       "resultRecordCount=" +
       pageSize +
@@ -634,17 +635,33 @@
     });
   }
 
+  function ensureHttps(url) {
+    if (!url || typeof url !== "string") {
+      return url;
+    }
+
+    return url.replace(/^http:\/\//i, "https://");
+  }
+
   function buildGoogleNewsRssUrl(queryKeyword) {
-    return (
+    return ensureHttps(
       "https://news.google.com/rss/search?q=" +
-      encodeURIComponent(queryKeyword) +
-      "&hl=en-US&gl=US&ceid=US:en"
+        encodeURIComponent(queryKeyword) +
+        "&hl=en-US&gl=US&ceid=US:en"
     );
+  }
+
+  function buildRss2JsonUrl(rssFeedUrl) {
+    const params = new URLSearchParams({
+      rss_url: ensureHttps(rssFeedUrl),
+    });
+
+    return RSS2JSON_ENDPOINT + "?" + params.toString();
   }
 
   function buildFreeNewsApiUrl(path, params) {
     const search = new URLSearchParams(params);
-    return FREENEWSAPI_ENDPOINT + path + "?" + search.toString();
+    return ensureHttps(FREENEWSAPI_ENDPOINT + path + "?" + search.toString());
   }
 
   function freeNewsApiHeaders() {
@@ -709,9 +726,7 @@
 
   async function fetchGoogleNewsRss(queryKeyword) {
     const rssUrl = buildGoogleNewsRssUrl(queryKeyword);
-    const response = await fetch(
-      RSS2JSON_ENDPOINT + "?rss_url=" + encodeURIComponent(rssUrl)
-    );
+    const response = await fetch(buildRss2JsonUrl(rssUrl));
     const data = await response.json();
 
     if (!response.ok || data.status !== "ok" || !Array.isArray(data.items)) {
@@ -904,7 +919,7 @@
       const headline = extractNewsHeadline(item);
       const source = extractNewsSource(item);
       const relativeTime = formatRelativeNewsTime(item.published_at || item.pubDate);
-      const link = item.link || item.original_url;
+      const link = ensureHttps(item.link || item.original_url);
 
       html += '<li class="news-feed__item">';
 
